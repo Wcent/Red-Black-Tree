@@ -1,7 +1,28 @@
+/************************************************************************
+
+     Author: Cent
+	 Date  : 2016.04.11
+Description: Implementaion of left-leaning red-black tree with swift
+
+************************************************************************/
+
 import Foundation
 
+/*
+ left-leaning red-black tree: 左倾红黑树
+ 红黑树的变种，具有性质：
+ 1、根结点为黑色
+ 2、每个结点不是红色，就是黑色，与标准红黑树不同的是，左倾红黑树红色左倾，
+    即不存在红色右子结点。
+ 3、不存在连续为红色的2个结点。
+ 4、叶子结点左右子树为nil链接，nil链接为黑色。
+ 5、所有从根结点到nil链接路径的黑色结点数量相等，或者说从任意结点起到此结点上
+    nil链接所有路径上的黑色结点数量相等，即黑色平衡。
 
-class WSRedBlackTree {
+ 红黑树实际上是2-3-4树的等价,而左倾红黑树是2-3树的等价
+*/
+
+class WSRedBlackTree { 
     var root: WSNode?
     var size = 0
     
@@ -37,7 +58,7 @@ class WSRedBlackTree {
         	value = nil
         	color = nil
 			WSNode.size += 1
-			print("construct #\(WSNode.size) WSNode")
+			print("construct #\(WSNode.size): WSNode()")
     	}
     
     	init(value: Int, color: WSColor) {
@@ -46,12 +67,12 @@ class WSRedBlackTree {
         	self.value = value
         	self.color = color
 			WSNode.size += 1
-			print("construct #\(WSNode.size) WSNode(\(value))")
+			print("construct #\(WSNode.size): WSNode(\(value))")
     	}
 
 		deinit {
+			print("deconstruct #\(WSNode.size): WSNode(\(value))")
 			WSNode.size -= 1
-			print("deconstruct WSNode(\(value))")
 		}
 	}
     
@@ -61,10 +82,8 @@ class WSRedBlackTree {
     } 
 
 	init(items: [Int]) {
+		root = nil
 		size = 0
-		if items.isEmpty {
-			root = nil
-		}
 		add(items)
 	}
 
@@ -84,35 +103,23 @@ class WSRedBlackTree {
 		}
 	}
     
-    private func insert(var node: WSNode?, value: Int) -> WSNode {
-		// simply binary tree insert...
-        if node == nil {
+    private func insert(var head: WSNode?, value: Int) -> WSNode? {
+		// 普通二叉树查找插入操作 
+        if head == nil {
             size += 1
-            node = WSNode(value: value, color: .Red)
-            return node!
+            head = WSNode(value: value, color: .Red)
+            return head 
+        }
+        if head?.value > value {
+            head?.left = insert(head?.left, value: value)
+        }
+        else if head?.value < value {
+            head?.right = insert(head?.right, value: value)
         }
         
-        if node?.value > value {
-            node?.left = insert(node?.left, value: value)
-        }
-        else if node?.value < value {
-            node?.right = insert(node?.right, value: value)
-        }
-        
-		// self-balancing process...
-		node = fixUp(node)
-		/*
-        if isBlack(node?.left) && isRed(node?.right) { // 左子节点为黑色，右子节点为红色，则左旋
-            node = rotateLeft(node)
-        }
-        if isRed(node?.left) && isRed(node?.left?.left) { // 左子节点为红色，左子节点的左节点为红色，也就是连续的2个左节点，则右旋
-            node = rotateRight(node)
-        }
-        if isRed(node?.left) && isRed(node?.right) { // 左子节点为红色，右子节点为红色，则颜色反转
-           colorFlip(node)
-        }
-		*/
-        return node!
+		// 通过旋转，颜色反转等操作自平衡，自下向上调整为2-3树 
+		head = fixUp(head)
+        return head 
     }
 
 	func delete(value: Int) {
@@ -120,56 +127,77 @@ class WSRedBlackTree {
 		root?.color = .Black
 	}
 
+	// 方便理解版本
+	// 删除任意结点，与删除最大最小结点类似，当删除结点为红色时，可保持黑色平衡，
+	// 当删除点不是叶子结点时，需要替换此结点为其左子树最大或右子树最小结点，最后
+	// 最大或最小结点为需要删除的结点
+	// 为调整最后删除结点为红色，自上向下查询过程时，根据需要左右移动红色链接，下传红色
+	// 最后删除红色结点或者找不到待删除结点返回时，通过旋转、颜色反转等操作自下向上自平衡，
+	// 调整为2－3树
 	private func delete(var head: WSNode?, value: Int) -> WSNode? {
+		// 待删除结点在左子树
 		if let nodeValue = head?.value where value < nodeValue {
-			if head?.left == nil {
+			if head?.left == nil { // 不存在时，返回
 				return head 
 			}
-			if isBlack(head?.left) && isBlack(head?.left?.left) {
+			if isBlack(head?.left) && isBlack(head?.left?.left) { // 红色链接下传左子树
 				head = moveRedLeft(head)
 			}
 			head?.left = delete(head?.left, value: value)
 		}
+
+		// 待删除结点在右子树
 		else if let nodeValue = head?.value where value > nodeValue {
-			if head?.right == nil {
+			if head?.right == nil { // 不存在时，返回
 				return head 
 			}
-			if isRed(head?.left) {
+			if isRed(head?.left) { // 红色链接右旋,以便下传
 				head = rotateRight(head)
 			}
-			if isBlack(head?.right) && isBlack(head?.right?.left) {
+			if isBlack(head?.right) && isBlack(head?.right?.left) { // 红色链接下传右子树
 				head = moveRedRight(head)
 			}
 			head?.right = delete(head?.right, value: value)
 		}
+
 		else {
 			if head != nil {
 				size -= 1
 			}
-			if head?.right == nil {
-				return nil 
+			if head?.right == nil { // 当前结点即为叶子结点
+				return head?.left // 右子树为nil链接时，左子树可能还有一个红色结点，故返回左子树
 			}
+			
+			// 根结点即为删除点时
 			if isRed(head?.left) {
 				head = rotateRight(head)
 			}
 			if isBlack(head?.right) && isBlack(head?.right?.left) {
 				head = moveRedRight(head)
 			}
+
+			// 待删除结点与其右子树最小结点交换
 			var tempNode = getMin(head?.right)
 			var tempValue = head?.value
 			head?.value = tempNode?.value
 			tempNode?.value = tempValue
 			tempNode = nil
 			tempValue = nil
+			// 替换后的右子树最小结点为真实删除结点
 			head?.right = deleteMin(head?.right)
 		}
+		// 自下向上旋转、颜色反转自平衡，调整为2－3树
 		head = fixUp(head)
 		return head
 	}
 
+	// 待删除结点在左子树，当删除结点为红色时，黑色可保持平衡
+	// 右子树存在可用红色结点时，可通过颜色反转，旋转等操作借
+	// 出红色结点，右子树没有多余红色结点时，则当前结点颜色反
+	// 转向下左右子树传递红色链接，即结合为4结点
 	private func moveRedLeft(var head: WSNode?) -> WSNode? {
 		colorFlip(head)
-		if isRed(head?.right?.left) {
+		if isRed(head?.right?.left) { // 右子树可向左子树借出红色结点
 			head?.right = rotateRight(head?.right)
 			head = rotateLeft(head)
 			colorFlip(head)
@@ -177,9 +205,13 @@ class WSRedBlackTree {
 		return head
 	}
 
+	// 待删除结点在右子树，当删除结点为红色时，黑色可保持平衡
+	// 左子树存在可用红色结点时，可通过颜色反转，旋转等操作借
+	// 出红色结点，左子树没有多余红色结点时，则当前结点颜色反
+	// 转向下左右子树传递红色链接，即结合为4结点
 	private func moveRedRight(var head: WSNode?) -> WSNode? {
 		colorFlip(head)
-		if isRed(head?.left?.left) {
+		if isRed(head?.left?.left) { // 左子树可向右子树借出红色结点
 			head = rotateRight(head)
 			colorFlip(head)
 		}
@@ -209,13 +241,17 @@ class WSRedBlackTree {
 	}
 
 	private func deleteMin(var head: WSNode?) -> WSNode? {
-		if head?.left == nil {
+		if head?.left == nil { // 删除结点为红色时，可保持黑色平衡
 			return nil
 		}
+
+		// 自上向下判断是否需要从右子树移动红色链接到左子树，以便调整最后待删除结点为红色
 		if isBlack(head?.left) && isBlack(head?.left?.left) {
 			head = moveRedLeft(head)
 		}
 		head?.left = deleteMin(head?.left)
+		
+		// 删除结点后，自下向上，通过旋转、颜色反转等操作自平衡，调整为2-3树
 		head = fixUp(head)
 		return head
 	}
@@ -229,28 +265,33 @@ class WSRedBlackTree {
 	}
 
 	private func deleteMax(var head: WSNode?) -> WSNode? {
-		if isRed(head?.left) { // 注意左倾红黑树，最后右子树为空链接时，左子树仍然可能有红色链接，此处右旋，同时也方便合并为4链接结点
+		if isRed(head?.left) { // 右子树为nil链接时，左子树可能还有一个红色结点，故右旋，另外红色右旋，为右子树向下传递红色准备
 			head = rotateRight(head)
 		}
-		if head?.right == nil {
+
+		if head?.right == nil { // 删除结点为红色时，可保持黑色平衡
 			return nil
 		}
+
+		// 自上向下判断是否需要从左子树移动红色链接到右子树，以便调整最后待删除结点为红色
 		if isBlack(head?.right) && isBlack(head?.right?.left) {
 			head = moveRedRight(head)
 		}
 		head?.right = deleteMax(head?.right)
+
+		// 删除结点后，自下向上，通过旋转、颜色反转等操作自平衡，调整为2-3树
 		head = fixUp(head)
 		return head
 	}
 
 	private func fixUp(var head: WSNode?) -> WSNode? {
-		if isBlack(head?.left) && isRed(head?.right) {
+		if isBlack(head?.left) && isRed(head?.right) { // 左子节点为黑色，右子节点为红色，则左旋，调整为左倾
 			head = rotateLeft(head)
 		}
-		if isRed(head?.left) && isRed(head?.left?.left) {
+		if isRed(head?.left) && isRed(head?.left?.left) { // 左子节点为红色，左子节点的左节点为红色，也就是连续的2个左节点，则右旋
 			head = rotateRight(head)
 		}
-		if isRed(head?.left) && isRed(head?.right) {
+		if isRed(head?.left) && isRed(head?.right) { // 左子节点为红色，右子节点为红色，则颜色反转，4点向上分裂
 			colorFlip(head)
 		}
 		return head
@@ -279,7 +320,7 @@ class WSRedBlackTree {
     }
 	
 	private func isRed(node: WSNode?) -> Bool {
-		if node == nil { // 叶子nil链接为黑色
+		if node == nil { // 叶子结点左右子树nil链接也为黑色
 			return false
 		}
 		if node?.color == .Red {
@@ -298,6 +339,7 @@ class WSRedBlackTree {
 
 
 
+// 层次遍历输出左倾红黑树
 func printRedBlackTree(tree: WSRedBlackTree) {
 	if tree.root == nil {
 		return ;
@@ -323,6 +365,9 @@ func printRedBlackTree(tree: WSRedBlackTree) {
 		}
 	}
 }
+
+
+// 测试...
 
 
 let redBlackTree = WSRedBlackTree(items: [3,2,6,8,9,0,1,7])
@@ -379,7 +424,6 @@ redBlackTree.add([12,15,19,17,11,14,18,10])
 printRedBlackTree(redBlackTree)
 // redBlackTree.delete(17)
 redBlackTree.delete(9)
-print(redBlackTree.size)
 printRedBlackTree(redBlackTree)
 print(redBlackTree.isEmpty)
 
@@ -400,6 +444,7 @@ redBlackTree.deleteMaxValue()
 redBlackTree.delete(10)
 
 redBlackTree.add(3)
+redBlackTree.add(1)
 /*
 min = redBlackTree.getMin(redBlackTree.root)
 max = redBlackTree.getMax(redBlackTree.root)
