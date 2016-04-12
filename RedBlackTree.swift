@@ -127,6 +127,64 @@ class WSRedBlackTree {
 		root?.color = .Black
 	}
 
+	// 简化版本，为下面理解版本的改写
+	// 删除任意结点，与删除最大最小结点类似，当删除结点为红色时，可保持黑色平衡，
+	// 当删除点不是叶子结点时，需要替换此结点为其左子树最大或右子树最小结点，最后
+	// 最大或最小结点为需要删除的结点
+	// 为调整最后删除结点为红色，自上向下查询过程时，根据需要左右移动红色链接，下传红色
+	// 最后删除红色结点或者找不到待删除结点返回时，通过旋转、颜色反转等操作自下向上自平衡，
+	// 调整为2－3树
+	private func delete(var head: WSNode?, value: Int) -> WSNode? {
+		// 待删除结点在左子树
+		if let nodeValue = head?.value where value < nodeValue {
+			if head?.left == nil { // 不存在更深层左子树递归时，查找结束，返回当前树结点
+				return head
+			}
+			if isBlack(head?.left) && isBlack(head?.left?.left) { // 红色链接下传左子树
+				head = moveRedLeft(head)
+			}
+			head?.left = delete(head?.left, value: value)
+		}
+
+		else {
+			if isRed(head?.left) { // 红色链接右旋,以便下传，另外可以保证最后删除的结点左子树为nil
+				head = rotateRight(head)
+			}
+
+			if let nodeValue = head?.value where value == nodeValue && head?.right == nil { // 当前结点为删除结点，并且其右子树为nil时，直接删除
+				size -= 1
+				return nil
+			}
+			else if head?.right == nil { // head为nil返回nil或者不存在更深层右子树递归时，查找结束，返回当前树结点
+				return head
+			}
+
+			if isBlack(head?.right) && isBlack(head?.right?.left) { // 红色链接下传右子树
+				head = moveRedRight(head)
+			}
+
+			if let nodeValue = head?.value where value > nodeValue {
+				head?.right = delete(head?.right, value: value)
+			}
+			else {
+				// 待删除结点与其右子树最小结点交换
+				// 实际操作中，可以直接将返回最小结点value覆盖待删除结点value，
+				// 而不需要交换，因为不管最小结点value为何值，最后会被删除，此处交换只为演示析构函数执行时，删除的为指定值
+				size -= 1
+				let tempNode = getMin(head?.right)
+				let tempValue = head?.value
+				head?.value = tempNode?.value
+				tempNode?.value = tempValue
+				// 替换后的右子树最小结点为真实删除结点
+				head?.right = deleteMin(head?.right)
+			}
+		}
+		// 自下向上旋转、颜色反转自平衡，调整为2－3树
+		head = fixUp(head)
+		return head
+	}
+
+/*
 	// 方便理解版本
 	// 删除任意结点，与删除最大最小结点类似，当删除结点为红色时，可保持黑色平衡，
 	// 当删除点不是叶子结点时，需要替换此结点为其左子树最大或右子树最小结点，最后
@@ -190,6 +248,7 @@ class WSRedBlackTree {
 		head = fixUp(head)
 		return head
 	}
+	*/
 
 	// 待删除结点在左子树，当删除结点为红色时，黑色可保持平衡
 	// 右子树存在可用红色结点时，可通过颜色反转，旋转等操作借
@@ -341,6 +400,7 @@ class WSRedBlackTree {
 
 // 层次遍历输出左倾红黑树
 func printRedBlackTree(tree: WSRedBlackTree) {
+	print("\noutput: red-black tree, size: \(tree.size)")
 	if tree.root == nil {
 		return ;
 	}
@@ -370,14 +430,16 @@ func printRedBlackTree(tree: WSRedBlackTree) {
 // 测试...
 
 
+print("create red-black tree with items: 3, 2, 6, 8, 9, 0, 1, 7")
 let redBlackTree = WSRedBlackTree(items: [3,2,6,8,9,0,1,7])
-print(redBlackTree.size)
+printRedBlackTree(redBlackTree)
 var min = redBlackTree.getMin(redBlackTree.root)
 var max = redBlackTree.getMax(redBlackTree.root)
-print(min?.value, min?.color!)
-print(max?.value, max?.color!)
+print("\nmin node of tree: WSNode\(min?.value)", min?.color)
+print("max node of tree: WSNode\(max?.value)", max?.color)
 min = nil
 max = nil
+print("delete: 0, 9, -10, 10")
 // redBlackTree.deleteMinValue()
 // redBlackTree.deleteMaxValue()
 redBlackTree.delete(0)
@@ -385,77 +447,106 @@ redBlackTree.delete(9)
 // printRedBlackTree(redBlackTree)
 redBlackTree.delete(-10)
 redBlackTree.delete(10)
-print(redBlackTree.size)
-// printRedBlackTree(redBlackTree)
+printRedBlackTree(redBlackTree)
+
 // let redBlackTree = WSRedBlackTree()
 	
 // redBlackTree.clear()
+print("\nadd: 8, 2, 5, 9, 7, 1, 0, 4, 10")
 redBlackTree.add([8,2,5,9,7,1,0,4,10])
-print(redBlackTree.size)
+printRedBlackTree(redBlackTree)
 
+print("delete: 4")
 redBlackTree.delete(4)
 printRedBlackTree(redBlackTree)
+print("add: 4")
 redBlackTree.add(4)
 printRedBlackTree(redBlackTree)
-print(redBlackTree.size)
 
+print("delete: 1")
 redBlackTree.delete(1)
 printRedBlackTree(redBlackTree)
+print("add: 1")
 redBlackTree.add(1)
 printRedBlackTree(redBlackTree)
-print(redBlackTree.size)
 
 /*
 min = redBlackTree.getMin(redBlackTree.root)
 max = redBlackTree.getMax(redBlackTree.root)
-print(min?.value, min?.color!)
-print(max?.value, max?.color!)
+print("min node of tree: WSNode\(min?.value)", min?.color)
+print("max node of tree: WSNode\(max?.value)", max?.color)
 min = nil
 max = nil
-// redBlackTree.deleteMinValue()
-// redBlackTree.deleteMaxValue()
+print("delete min & max value")
+redBlackTree.deleteMinValue()
+redBlackTree.deleteMaxValue()
 printRedBlackTree(redBlackTree)
+print("delete: 0")
 redBlackTree.delete(0)
 printRedBlackTree(redBlackTree)
+print("delete: 10")
 redBlackTree.delete(10)
+printRedBlackTree(redBlackTree)
 */
 
+print("\nadd: 12, 15, 19, 17, 11, 14, 18, 10")
 redBlackTree.add([12,15,19,17,11,14,18,10])
 printRedBlackTree(redBlackTree)
+// print("delete: 17")
 // redBlackTree.delete(17)
+print("delete: 9")
 redBlackTree.delete(9)
 printRedBlackTree(redBlackTree)
-print(redBlackTree.isEmpty)
 
 // min = nil
 // max = nil
+print("\nis the red-black tree empty?\n\(redBlackTree.isEmpty)")
+print("clear the red-black tree")
 redBlackTree.clear()
-print(redBlackTree.isEmpty)
-print(WSRedBlackTree.WSNode.size)
-print(redBlackTree.size)
+print("is the red-black tree empty?\n\(redBlackTree.isEmpty)")
+print("WSNode.size: \(WSRedBlackTree.WSNode.size)")
+printRedBlackTree(redBlackTree)
+
+
 /*
 min = redBlackTree.getMin(redBlackTree.root)
 max = redBlackTree.getMax(redBlackTree.root)
-print(min?.value, min?.color!)
-print(max?.value, max?.color!)
+print("min node of tree: WSNode\(min?.value)", min?.color)
+print("max node of tree: WSNode\(max?.value)", max?.color)
+print("delete min & max value")
 redBlackTree.deleteMinValue()
 redBlackTree.deleteMaxValue()
 */
-redBlackTree.delete(10)
 
+print("\ndelete: 10")
+redBlackTree.delete(10)
+print("add: 3")
 redBlackTree.add(3)
+print("add: 1")
 redBlackTree.add(1)
+// print("add: 10")
+// redBlackTree.add(10)
+printRedBlackTree(redBlackTree)
+
 /*
 min = redBlackTree.getMin(redBlackTree.root)
 max = redBlackTree.getMax(redBlackTree.root)
-print(min?.value, min?.color!)
-print(max?.value, max?.color!)
+print("min node of tree: WSNode\(min?.value)", min?.color)
+print("max node of tree: WSNode\(max?.value)", max?.color)
 min = nil
 max = nil
+print("delete min & max value")
 // redBlackTree.deleteMinValue()
 // redBlackTree.deleteMaxValue()
 */
+
+print("delete: 10")
 redBlackTree.delete(10)
+// print("delete: 1")
+// redBlackTree.delete(1)
+print("delete: 3")
 redBlackTree.delete(3)
 printRedBlackTree(redBlackTree)
-print(redBlackTree.size)
+
+
+
